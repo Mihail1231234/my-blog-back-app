@@ -1,14 +1,28 @@
 package ru.bibikov.myblogbackapp.controller;
 
 import lombok.AllArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import ru.bibikov.myblogbackapp.dto.*;
+import ru.bibikov.myblogbackapp.exception.comment.CommentWithIdNotFound;
+import ru.bibikov.myblogbackapp.exception.post.PostWithIdNotFound;
 import ru.bibikov.myblogbackapp.model.Comment;
 import ru.bibikov.myblogbackapp.model.Post;
+import ru.bibikov.myblogbackapp.repository.FileRepository;
 import ru.bibikov.myblogbackapp.repository.PostRepository;
+import ru.bibikov.myblogbackapp.service.FileService;
 
+import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,6 +34,8 @@ import java.util.List;
 public class Controller {
 
     private final PostRepository repository;
+    private final FileService fileService;
+    private final FileRepository fileRepository;
 
     @PostMapping()
     public ResponseEntity<PostPreviewDto> createPost(@RequestBody CreatePostRequest request){
@@ -38,16 +54,22 @@ public class Controller {
     }
 
     @GetMapping("/{id}")
-    public PostPreviewDto getPost(@PathVariable(name = "id") Long id){
+    public ResponseEntity<?> getPost(@PathVariable(name = "id") Long id){
         Post post=repository.getPost(id);
-        return PostPreviewDto.builder()
+        return ResponseEntity.ok(PostPreviewDto.builder()
                 .id(post.getId())
                 .title(post.getTitle())
                 .text(post.getText())
                 .tags(post.getTags() != null ? post.getTags() : List.of())
                 .likesCount(post.getLikesCount())
                 .commentsCount(post.getCommentsCount())
-                .build();
+                .build());
+    }
+
+    @PutMapping("/{id}")
+    public PostPreviewDto updatePost(@PathVariable(name = "id") Long id,
+                                     @RequestBody UpdatePostRequest request){
+        return repository.updatePost(id,request.getTitle(),request.getText(),request.getTags());
     }
 
     @DeleteMapping("/{id}")
@@ -113,5 +135,32 @@ public class Controller {
         repository.deleteComment(id,postId);
         return ResponseEntity.ok().build();
     }
+    @PutMapping("/{id}/image")
+    public ResponseEntity<Void> addOrUpdateImage(@PathVariable(name = "id") Long id, @RequestParam(name = "image") MultipartFile file){
+        String imagePath= fileService.saveImage(file);
+        fileService.updatePostService(id,imagePath);
+        return ResponseEntity.ok().build();
+    }
+    @GetMapping("/{id}/image")
+    public ResponseEntity<Resource> getImage(@PathVariable(name = "id")Long id) throws IOException {
+        String fileName=fileRepository.getImage(id);
 
+        Path filePath= Paths.get(fileService.getUploadDir(),fileName);
+        Resource resource=new UrlResource(filePath.toUri());
+        String contentType = Files.probeContentType(filePath);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .body(resource);
+    }
+
+    @ExceptionHandler(PostWithIdNotFound.class)
+    public ResponseEntity<String> handlePostNotFound(PostWithIdNotFound e){
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body("Пост не найден "+e);
+    }
+    @ExceptionHandler(CommentWithIdNotFound.class)
+    public ResponseEntity<String> handlePostNotFound(CommentWithIdNotFound e){
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body("Комментарий не найден "+e);
+    }
 }
