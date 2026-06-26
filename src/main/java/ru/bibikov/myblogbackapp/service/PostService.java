@@ -70,6 +70,7 @@ public class PostService {
     }
 
     private PostPreviewDto checkTags(List<String> tags,Long postId){
+        repository.deletePostTag(postId);
         String placeholders=String.join(",", Collections.nCopies(tags.size(),"?"));
         if (placeholders.isEmpty()) {
             Post post=repository.getPostWithId(postId);

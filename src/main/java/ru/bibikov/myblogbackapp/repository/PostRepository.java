@@ -5,10 +5,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
-import ru.bibikov.myblogbackapp.dto.CommentResponse;
-import ru.bibikov.myblogbackapp.dto.CreateCommentRequest;
 import ru.bibikov.myblogbackapp.dto.PostPreviewDto;
-import ru.bibikov.myblogbackapp.dto.PostResponse;
 import ru.bibikov.myblogbackapp.model.Comment;
 import ru.bibikov.myblogbackapp.model.Post;
 import ru.bibikov.myblogbackapp.model.Tag;
@@ -114,9 +111,9 @@ public class PostRepository {
         String sql="select * from posts where id=?";
         return jdbcTemplate.queryForObject(sql, postRowMapper, id);
     }
-    public int updatePost(Long postId, String title,String text){ //updated
+    public void updatePost(Long postId, String title, String text){ //updated
         String sql="update posts set title=?,text=? where id=?";
-        return jdbcTemplate.update(sql, Integer.class,title,text,postId);
+        jdbcTemplate.update(sql, title, text, postId);
     }
 
     public int deletePost(Long id){ //updated
@@ -174,6 +171,10 @@ public class PostRepository {
         return jdbcTemplate.query(sqlFromPostTagDb,tagRowMapper,postId).stream()
                 .map(Tag::getName)
                 .toList();
+    }
+    public void deletePostTag(Long postId){
+        String deleteTagSql="delete from post_tags where post_id=?";
+        jdbcTemplate.update(deleteTagSql,postId);
     }
 }
 
