@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import ru.bibikov.myblogbackapp.model.Comment;
 
 import java.util.List;
@@ -13,6 +14,15 @@ import java.util.List;
 public class CommentRepository {
     private final JdbcTemplate jdbcTemplate;
 
+    private static final String CREATE_COMMENT="insert into comments(text, post_id) VALUES (?,?) returning id";
+    private static final String GET_ALL_COMMENTS="select * from comments where post_id=?";
+    private static final String GET_COMMENT_BY_ID="select * from comments where id=? and post_id=?";
+    private static final String UPDATE_COMMENT_COUNT_INCREMENT_IN_POST="update posts set comments_count=comments_count+1 where id=?";
+    private static final String UPDATE_COMMENT_BY_ID="update comments set text=? where id=? and post_id=?";
+    private static final String DELETE_COMMENT_BY_ID="delete from comments where id=?";
+    private static final String UPDATE_COMMENT_COUNT_DECREMENT_IN_POST="update posts set comments_count=comments_count-1 where id=?";
+    private static final String COMMENT_ID_IS_EXIST="select exists(select 1 from comments where id=?)";
+
     private final RowMapper<Comment> commentRowMapper=(rs, rowNum)->{
         Comment comment=new Comment();
         comment.setId(rs.getLong("id"));
@@ -21,42 +31,36 @@ public class CommentRepository {
         return comment;
     };
 
+    @Transactional
     public Long createComment(Long id, String comment){ //updated
-        String sql="insert into comments(text, post_id) VALUES (?,?) returning id";
-        return jdbcTemplate.queryForObject(sql,Long.class,comment,id);
+        return jdbcTemplate.queryForObject(CREATE_COMMENT,Long.class,comment,id);
     }
-    public void updateCommentCountIncrementInPost(Long postId){  //updated
-        String sqlForPosts="update posts set comments_count=comments_count+1 where id=?";
-        jdbcTemplate.update(sqlForPosts,postId);
-    }
-
     public List<Comment> getComments(Long id){  //updated
-        String sql="select * from comments where post_id=?";
-        return jdbcTemplate.query(sql,commentRowMapper,id);
+        return jdbcTemplate.query(GET_ALL_COMMENTS,commentRowMapper,id);
     }
 
-    public Comment getComment(Long id){     //updated
-        String sql="select * from comments where id=?";
-        return jdbcTemplate.queryForObject(sql,commentRowMapper,id);
+    public Comment getComment(Long id,Long postId){     //updated
+        return jdbcTemplate.queryForObject(GET_COMMENT_BY_ID,commentRowMapper,id,postId);
     }
-
-    public void updateComment(Long id,String text){
-        String sqlUpdate="update comments set text=? where id=?";
-        jdbcTemplate.update(sqlUpdate,text,id);
+    @Transactional
+    public void updateCommentCountIncrementInPost(Long postId){  //updated
+        jdbcTemplate.update(UPDATE_COMMENT_COUNT_INCREMENT_IN_POST,postId);
     }
-
+    @Transactional
+    public void updateComment(Long commentId,Long postId,String text){
+        jdbcTemplate.update(UPDATE_COMMENT_BY_ID,text,commentId,postId);
+    }
+    @Transactional
     public void deleteComment(Long id){
-        String sql="delete from comments where id=?";
-        jdbcTemplate.update(sql,id);
+        jdbcTemplate.update(DELETE_COMMENT_BY_ID,id);
     }
-
+    @Transactional
     public void updateCommentCountDecrementInPost(Long postId){
-        String sqlForComment="update posts set comments_count=comments_count-1 where id=?";
-        jdbcTemplate.update(sqlForComment,postId);
+        jdbcTemplate.update(UPDATE_COMMENT_COUNT_DECREMENT_IN_POST,postId);
     }
 
     public boolean existId(Long id){
-        return jdbcTemplate.queryForObject("select exists(select 1 from comments where id=?)",Boolean.class,id);
+        return jdbcTemplate.queryForObject(COMMENT_ID_IS_EXIST,Boolean.class,id);
     }
 
 }

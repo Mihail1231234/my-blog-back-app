@@ -12,12 +12,11 @@ import org.springframework.jdbc.datasource.init.DataSourceInitializer;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
-import org.springframework.web.servlet.view.InternalResourceViewResolver;
 
 import javax.sql.DataSource;
 
 @Configuration
-@EnableTransactionManagement
+@EnableTransactionManagement        //прочитать про аннотацию
 @PropertySource("classpath:application.properties")
 public class PersistenceConfig {
 

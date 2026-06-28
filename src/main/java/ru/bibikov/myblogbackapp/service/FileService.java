@@ -58,7 +58,6 @@ public class FileService {
         log.info("File size: {} bytes", file.getSize());
         log.info("File content type: {}", file.getContentType());
         log.info("File is empty: {}", file.isEmpty());
-        //validateFile(file);
         try {
             String originalFilename = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
 
@@ -96,10 +95,12 @@ public class FileService {
     }
 
     public String getImage(Long postId){
+        log.debug("Получение изображения поста с post_Id={}",postId);
         return repository.getImage(postId);
     }
 
     public void updatePostService(Long id, String file) {
+        log.info("Редактирование изображения поста с post_id={}: file='{}'",id,file);
         repository.updateImage(id,file);
     }
 }

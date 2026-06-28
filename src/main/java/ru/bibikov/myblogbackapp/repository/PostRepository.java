@@ -2,21 +2,40 @@ package ru.bibikov.myblogbackapp.repository;
 
 
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import ru.bibikov.myblogbackapp.dto.PostPreviewDto;
-import ru.bibikov.myblogbackapp.model.Comment;
 import ru.bibikov.myblogbackapp.model.Post;
 import ru.bibikov.myblogbackapp.model.Tag;
 
 import java.util.*;
 
+@Slf4j
 @Repository
 @AllArgsConstructor
 public class PostRepository {
 
     private final JdbcTemplate jdbcTemplate;
+
+    private static final String CREATE_POST_AND_RETURN_POST_ID="insert into posts(title,text) values (?,?) returning id";
+    private static final String CREATE_POST_TAG_CHAIN="insert into post_tags(post_id,tag_id) values (?,?)";
+    private static final String TAGS_EXIST="select * from tags where tags.name in(%s)";
+    private String buildSelectTags(String placeholder){
+        return String.format(TAGS_EXIST,placeholder);
+    }
+    private static final String CREATE_TAG_AND_RETURN_TAG_ID="insert into tags(name) values(?) returning id";
+    private static final String GET_COUNT_POST="select count(*) from posts where lower(title) like lower(?)";
+    private static final String FIND_POSTS_PAGINATED="select *from posts where lower(title) like lower(?) order by id desc limit ? offset ?";
+    private static final String GET_POST_BY_ID="select * from posts where id=?";
+    private static final String UPDATE_POST_BY_ID="update posts set title=?,text=? where id=?";
+    private static final String DELETE_POST_BY_ID="delete from posts where id=?";
+    private static final String INCREMENT_LIKE_BY_POST_ID="update posts set likes_count=likes_count+1 where id=? returning likes_count";
+    private static final String GET_TAGS_BY_POST_ID="select tags.id, tags.name from tags join post_tags on tags.id=post_tags.tag_id where post_id=?";
+    private static final String DELETE_POST_TAG_CHAIN_BY_POST_ID="delete from post_tags where post_id=?";
+    private static final String POST_ID_IS_EXIST="select exists(select 1 from posts where id=?)";
 
     private final RowMapper<Post> postRowMapper=(rs, rowNum)->{
         Post post=new Post();
@@ -36,40 +55,36 @@ public class PostRepository {
         return tag;
     };
 
+    @Transactional
     public Long createPostReturnId(String title,        //updated
-                                   String text,
-                                   List<String> tags){
-        String sqlForCreate="insert into posts(title,text) values (?,?) returning id";
-        return jdbcTemplate.queryForObject(sqlForCreate,Long.class,title,text);
+                                   String text){
+        return jdbcTemplate.queryForObject(CREATE_POST_AND_RETURN_POST_ID,Long.class,title,text);
     }
 
+    @Transactional
     public void createPostTagChain(Long postId,Long tagId){ //updated
-        jdbcTemplate.update("insert into post_tags(post_id,tag_id) values (?,?)",postId,tagId);
+        jdbcTemplate.update(CREATE_POST_TAG_CHAIN,postId,tagId);
     }
 
-    public List<Tag> tagsExist(String placeholders,List<String> tags){      //updated
-        String sqlForTags = "select * from tags where tags.name in(" + placeholders + ")";
-        return jdbcTemplate.query(sqlForTags,tagRowMapper,tags.toArray());
+    public List<Tag> tagsExist(String placeholders,List<String> tags){//updated
+        String sql=buildSelectTags(placeholders);
+        return jdbcTemplate.query(sql,tagRowMapper,tags.toArray());
     }
 
+    @Transactional
     public Long createTag(String tagName){      //updated
-        String sqlForCreateTags="insert into tags(name) values(?) returning id";
-        return jdbcTemplate.queryForObject(sqlForCreateTags, Long.class, tagName);
+        return jdbcTemplate.queryForObject(CREATE_TAG_AND_RETURN_TAG_ID, Long.class, tagName);
     }
 
     public int countPosts(String searchPattern){        //updated
-        String COUNT_POSTS="select count(*) from posts where lower(title) like lower(?)";
         return jdbcTemplate.queryForObject(
-                COUNT_POSTS,
+                GET_COUNT_POST,
                 Integer.class,
                 searchPattern
         );
     }
 
     public List<PostPreviewDto> findPostPaginated(String searchPattern, int pageSize, int offset){ //updated
-        String FIND_POSTS_PAGINATED="select *from posts where lower(title) like lower(?)" +
-                "order by id desc limit ? offset ?";
-
         return jdbcTemplate.query(
                 FIND_POSTS_PAGINATED,
                 (rs, rowNum) -> {
@@ -97,39 +112,36 @@ public class PostRepository {
     }
 
     public Post getPostWithId(Long id){         //updated
-        String sqlForSelect="select * from posts where id=?";
-        return jdbcTemplate.queryForObject(sqlForSelect,postRowMapper,id);
+        return jdbcTemplate.queryForObject(GET_POST_BY_ID,postRowMapper,id);
     }
 
+    @Transactional
     public void updatePost(Long postId, String title, String text){ //updated
-        String sql="update posts set title=?,text=? where id=?";
-        jdbcTemplate.update(sql, title, text, postId);
+        jdbcTemplate.update(UPDATE_POST_BY_ID, title, text, postId);
     }
 
+    @Transactional
     public int deletePost(Long id){ //updated
-        String sql="delete from posts where id=?";
-        return jdbcTemplate.update(sql,id);
+        return jdbcTemplate.update(DELETE_POST_BY_ID,id);
     }
 
+    @Transactional
     public int likesIncrement(Long id) { //updated
-        String sql="update posts set likes_count=likes_count+1 where id=? returning likes_count";
-        return jdbcTemplate.queryForObject(sql,Integer.class,id);
+        return jdbcTemplate.queryForObject(INCREMENT_LIKE_BY_POST_ID,Integer.class,id);
     }
 
     public List<String> getTags(Long postId){           //updated
-        String sqlFromPostTagDb="select tags.id, tags.name from tags " +
-                                "join post_tags on tags.id=post_tags.tag_id " +
-                                "where post_id=?";
-        return jdbcTemplate.query(sqlFromPostTagDb,tagRowMapper,postId).stream()
+        return jdbcTemplate.query(GET_TAGS_BY_POST_ID,tagRowMapper,postId).stream()
                 .map(Tag::getName)
                 .toList();
     }
+
+    @Transactional
     public void deletePostTag(Long postId){
-        String deleteTagSql="delete from post_tags where post_id=?";
-        jdbcTemplate.update(deleteTagSql,postId);
+        jdbcTemplate.update(DELETE_POST_TAG_CHAIN_BY_POST_ID,postId);
     }
     public boolean existId(Long id){
-        return jdbcTemplate.queryForObject("select exists(select 1 from posts where id=?)",Boolean.class,id);
+        return jdbcTemplate.queryForObject(POST_ID_IS_EXIST,Boolean.class,id);
     }
 }
 
