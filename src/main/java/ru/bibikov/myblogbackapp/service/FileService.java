@@ -88,9 +88,15 @@ public class FileService {
         }
     }
 
+
+
     private String extract(String name){
         int index = name.lastIndexOf(".");
         return name.substring(index).toLowerCase();
+    }
+
+    public String getImage(Long postId){
+        return repository.getImage(postId);
     }
 
     public void updatePostService(Long id, String file) {
