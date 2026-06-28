@@ -55,4 +55,8 @@ public class CommentRepository {
         jdbcTemplate.update(sqlForComment,postId);
     }
 
+    public boolean existId(Long id){
+        return jdbcTemplate.queryForObject("select exists(select 1 from comments where id=?)",Boolean.class,id);
+    }
+
 }

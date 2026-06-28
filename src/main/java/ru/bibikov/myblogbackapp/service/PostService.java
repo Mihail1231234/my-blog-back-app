@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.bibikov.myblogbackapp.dto.PostPreviewDto;
 import ru.bibikov.myblogbackapp.dto.PostResponse;
+import ru.bibikov.myblogbackapp.exception.post.PostWithIdNotFound;
 import ru.bibikov.myblogbackapp.model.Post;
 import ru.bibikov.myblogbackapp.model.Tag;
 import ru.bibikov.myblogbackapp.repository.PostRepository;
@@ -54,25 +55,30 @@ public class PostService {
     }
 
     public Post getPost(Long id) {
+        validateId(id);
         Post post=repository.getPostWithId(id);
         post.setTags(repository.getTags(id));
         return post;
     }
 
     public int likesIncrement(Long id){
+        validateId(id);
         return repository.likesIncrement(id);
     }
 
     public PostPreviewDto updatePost(Long postId, String title,String text, List<String > tags){
+        validateId(postId);
         repository.updatePost(postId,title,text);
         return checkTags(tags,postId);
     }
 
     public int deletePost(Long id){
+        validateId(id);
         return repository.deletePost(id);
     }
 
     private PostPreviewDto checkTags(List<String> tags,Long postId){
+        validateId(postId);
         repository.deletePostTag(postId);
         String placeholders=String.join(",", Collections.nCopies(tags.size(),"?"));
         if (placeholders.isEmpty()) {
@@ -114,5 +120,10 @@ public class PostService {
                 .commentsCount(post.getCommentsCount())
                 .tags(tag)
                 .build();
+    }
+    private void validateId(Long postId){
+        if (postId==null||!repository.existId(postId)){
+            throw new PostWithIdNotFound("Пост с таким ID не найден");
+        }
     }
 }

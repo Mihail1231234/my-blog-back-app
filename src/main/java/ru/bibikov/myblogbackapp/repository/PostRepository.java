@@ -128,5 +128,8 @@ public class PostRepository {
         String deleteTagSql="delete from post_tags where post_id=?";
         jdbcTemplate.update(deleteTagSql,postId);
     }
+    public boolean existId(Long id){
+        return jdbcTemplate.queryForObject("select exists(select 1 from posts where id=?)",Boolean.class,id);
+    }
 }
 
