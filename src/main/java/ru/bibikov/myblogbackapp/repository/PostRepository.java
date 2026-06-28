@@ -28,13 +28,7 @@ public class PostRepository {
         post.setImage(rs.getString("image"));
         return post;
     };
-    private final RowMapper<Comment> commentRowMapper=(rs, rowNum)->{
-        Comment comment=new Comment();
-        comment.setId(rs.getLong("id"));
-        comment.setText(rs.getString("text"));
-        comment.setPostId(rs.getLong("post_id"));
-        return comment;
-    };
+
     private final RowMapper<Tag> tagRowMapper=(rs, rowNum)->{
         Tag tag=new Tag();
         tag.setId(rs.getLong("id"));
@@ -61,11 +55,6 @@ public class PostRepository {
     public Long createTag(String tagName){      //updated
         String sqlForCreateTags="insert into tags(name) values(?) returning id";
         return jdbcTemplate.queryForObject(sqlForCreateTags, Long.class, tagName);
-    }
-
-    public Post getPostWithId(Long id){         //updated
-        String sqlForSelect="select * from posts where id=?";
-        return jdbcTemplate.queryForObject(sqlForSelect,postRowMapper,id);
     }
 
     public int countPosts(String searchPattern){        //updated
@@ -107,10 +96,11 @@ public class PostRepository {
         );
     }
 
-    public Post getPost(Long id){ //updated
-        String sql="select * from posts where id=?";
-        return jdbcTemplate.queryForObject(sql, postRowMapper, id);
+    public Post getPostWithId(Long id){         //updated
+        String sqlForSelect="select * from posts where id=?";
+        return jdbcTemplate.queryForObject(sqlForSelect,postRowMapper,id);
     }
+
     public void updatePost(Long postId, String title, String text){ //updated
         String sql="update posts set title=?,text=? where id=?";
         jdbcTemplate.update(sql, title, text, postId);
@@ -121,47 +111,9 @@ public class PostRepository {
         return jdbcTemplate.update(sql,id);
     }
 
-    public int likesIncrement(Long id) {
-        String sqlUpdate="update posts set likes_count=likes_count+1 where id=?";
-        jdbcTemplate.update(sqlUpdate,id);
-
-        String sqlSelect="select likes_count from posts where id =?";
-        return jdbcTemplate.queryForObject(sqlSelect,Integer.class,id);
-    }
-
-    public Comment createComment(Long id, String comment){
-        String sql="insert into comments(text, post_id) VALUES (?,?) returning id";
-        Long newId=jdbcTemplate.queryForObject(sql,Long.class,comment,id);
-        String sqlForPosts="update posts set comments_count=comments_count+1 where id=?";
-        jdbcTemplate.update(sqlForPosts,id);
-
-        String sqlFromDb="select * from comments where id=?";
-        return jdbcTemplate.queryForObject(sqlFromDb,commentRowMapper,newId);
-    }
-
-    public List<Comment> getComments(Long id){
-        String sql="select * from comments where post_id=?";
-        return jdbcTemplate.query(sql,commentRowMapper,id);
-    }
-
-    public Comment getComment(Long id){
-        String sql="select * from comments where id=?";
-        return jdbcTemplate.queryForObject(sql,commentRowMapper,id);
-    }
-
-    public Comment updateComment(Long id,String text){
-        String sqlUpdate="update comments set text=? where id=?";
-        jdbcTemplate.update(sqlUpdate,text,id);
-
-        String sqlSelect="select * from comments where id=?";
-        return jdbcTemplate.queryForObject(sqlSelect,commentRowMapper,id);
-    }
-
-    public void deleteComment(Long id,Long postId){
-        String sql="delete from comments where id=?";
-        jdbcTemplate.update(sql,id);
-        String sqlForComment="update posts set comments_count=comments_count-1 where id=?";
-        jdbcTemplate.update(sqlForComment,postId);
+    public int likesIncrement(Long id) { //updated
+        String sql="update posts set likes_count=likes_count+1 where id=? returning likes_count";
+        return jdbcTemplate.queryForObject(sql,Integer.class,id);
     }
 
     public List<String> getTags(Long postId){           //updated

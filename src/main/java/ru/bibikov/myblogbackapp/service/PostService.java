@@ -1,11 +1,10 @@
 package ru.bibikov.myblogbackapp.service;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.jdbc.core.RowMapper;
+
 import org.springframework.stereotype.Service;
 import ru.bibikov.myblogbackapp.dto.PostPreviewDto;
 import ru.bibikov.myblogbackapp.dto.PostResponse;
-import ru.bibikov.myblogbackapp.model.Comment;
 import ru.bibikov.myblogbackapp.model.Post;
 import ru.bibikov.myblogbackapp.model.Tag;
 import ru.bibikov.myblogbackapp.repository.PostRepository;
@@ -55,9 +54,13 @@ public class PostService {
     }
 
     public Post getPost(Long id) {
-        Post post=repository.getPost(id);
+        Post post=repository.getPostWithId(id);
         post.setTags(repository.getTags(id));
         return post;
+    }
+
+    public int likesIncrement(Long id){
+        return repository.likesIncrement(id);
     }
 
     public PostPreviewDto updatePost(Long postId, String title,String text, List<String > tags){
